@@ -1,0 +1,68 @@
+#define BUTTON_PIN 2         
+#define SENSOR_PIN 6         
+#define MOTOR_PIN 3           
+#define RED_LED_PIN 4       
+#define GREEN_LED_PIN 5       
+#define CHARGING_PIN A0       
+bool motorRunning = false;    // Track motor state 
+bool buttonPressed = false;   // Track button state 
+void setup() { 
+pinMode(BUTTON_PIN, INPUT_PULLUP);  // Configure button as input with pull-up 
+pinMode(SENSOR_PIN, INPUT);        
+pinMode(MOTOR_PIN, OUTPUT);         
+pinMode(RED_LED_PIN, OUTPUT);       
+pinMode(GREEN_LED_PIN, OUTPUT);     // Configure Green LED as output
+digitalWrite(MOTOR_PIN, LOW);       
+// Ensure motor is off initially 
+Serial.begin(9600);               
+} 
+void loop() { 
+  // Initialize serial monitor 
+// Step 1: Check Battery Voltage and Update LED 
+float batteryVoltage = readBatteryVoltage(); 
+if (batteryVoltage < 3.7) { 
+digitalWrite(RED_LED_PIN, HIGH);  // Red LED for charging 
+digitalWrite(GREEN_LED_PIN, LOW); 
+} else if (batteryVoltage >= 4.2) { 
+digitalWrite(RED_LED_PIN, LOW); 
+digitalWrite(GREEN_LED_PIN, HIGH);  // Green LED for fully charged 
+} else { 
+digitalWrite(RED_LED_PIN, LOW); 
+digitalWrite(GREEN_LED_PIN, LOW);  // Turn off LEDs when idle 
+} 
+// Step 2: Check Button State 
+if (digitalRead(BUTTON_PIN) == LOW) {  // Button pressed (LOW due to pull-up) 
+delay(50);  // Debounce delay 
+if (digitalRead(BUTTON_PIN) == LOW) {  // Confirm press after debounce 
+buttonPressed = !buttonPressed;  // Toggle button state 
+motorRunning = buttonPressed;    // Button takes priority over sensor 
+digitalWrite(MOTOR_PIN, motorRunning ? HIGH : LOW); 
+Serial.println(motorRunning ? "Water dispensing started (Button)." : "Water dispensing stopped 
+(Button)."); 
+} 
+while (digitalRead(BUTTON_PIN) == LOW);  // Wait for button release 
+} 
+// Step 3: Check Hand Detection (Only if Button is not pressed) 
+if (!buttonPressed) { 
+if (digitalRead(SENSOR_PIN) == HIGH) {  // Hand detected 
+if (!motorRunning) {
+motorRunning = true; 
+digitalWrite(MOTOR_PIN, HIGH);  // Start motor 
+Serial.println("Water dispensing started (Sensor)."); 
+} 
+} else {  // No hand detected 
+if (motorRunning) { 
+motorRunning = false; 
+digitalWrite(MOTOR_PIN, LOW);  // Stop motor 
+Serial.println("Water dispensing stopped (Sensor)."); 
+} 
+} 
+} 
+} 
+// Function to read battery voltage 
+float readBatteryVoltage() { 
+int analogValue = analogRead(CHARGING_PIN); 
+float voltage = (analogValue / 1023.0) * 5.0; // Convert ADC value to voltage 
+voltage = voltage * 2; // Adjust for voltage divider (if used) 
+return voltage; 
+}
